@@ -1,0 +1,5 @@
+build/**
+.vscode/**
+debug_custom.json
+debug.svd
+debug.cfg
