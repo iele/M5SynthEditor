@@ -214,7 +214,7 @@ void SynthData::begin()
         channels[i].volume = 127;
     }
     master_volume = 127;
-    bpm = 90;
+    bpm = 180;
 }
 
 uint8_t SynthData::getNote(uint8_t channel, uint8_t note)
@@ -242,13 +242,17 @@ bool SynthData::setNote(uint8_t channel, uint8_t note, uint8_t pitch, uint8_t ve
 {
     if (channel >= DATA_LENGTH || note >= CHANNELS_LENGTH)
         return false;
-    if (pitch < 0x1B)
+
+    if (pitch != 0x00)
     {
-        pitch = 0x6A;
-    }
-    if (pitch > 0x6A)
-    {
-        pitch = 0x1B;
+        if (pitch < 0x1B)
+        {
+            pitch = 0x6A;
+        }
+        if (pitch > 0x6A)
+        {
+            pitch = 0x1B;
+        }
     }
     channels[channel].notes[note].pitch = pitch;
     channels[channel].notes[note].velocity = velocity;

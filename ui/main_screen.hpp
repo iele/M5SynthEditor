@@ -21,7 +21,10 @@ public:
     void enterHold();
     void aButton();
     void bButton();
+    void aHold();
     void bHold();
+    void touchPoint(int16_t x, int16_t y);
+    void touchFlick(int x, int y);
 
 private:
     M5Canvas main_canvas;
@@ -35,8 +38,10 @@ private:
 
     uint8_t op_mode;
     uint8_t last_op_mode;
-    uint8_t pos_x;
     uint8_t pos_y;
+    uint8_t pos_x;
+    int32_t base;
+    int32_t offset;
     uint8_t last_note;
 
     unsigned long last_play_time;
@@ -55,10 +60,12 @@ void MainScreen::begin()
     op_mode = 0;
     pos_x = 0;
     pos_y = 0;
+    base = 0;
+    offset = 0;
 
     text_height = bg_canvas.fontHeight(&AsciiFont8x16);
     text_width = bg_canvas.fontWidth(&AsciiFont8x16);
-    channel_start_pos = M5.Display.height() - (text_height + 3) * DATA_LENGTH;
+    channel_start_pos = M5.Display.height() - (text_height + 3) * (DATA_LENGTH + 1);
     note_start_pos = text_width * 6;
 }
 
@@ -87,23 +94,43 @@ void MainScreen::update()
     bg_canvas.drawString("Tempo:", text_width * 9, text_height * 2);
     bg_canvas.drawString(tempo_str, text_width * 16, text_height * 2);
 
-    bg_canvas.fillRectAlpha(0, text_height,
-                            M5.Display.width(), channel_start_pos - text_height, 128, TFT_DARKGRAY);
+    bg_canvas.fillRectAlpha(0,
+                            text_height,
+                            M5.Display.width(),
+                            channel_start_pos - text_height,
+                            128, TFT_DARKGRAY);
 
-    for (int i = 0; i < DATA_LENGTH; i++)
+    for (int i = 0; i < DATA_LENGTH + 1; i++)
     {
         bg_canvas.writeFastHLine(0,
                                  channel_start_pos + (text_height + 3) * i,
                                  M5.Display.width(),
                                  TFT_WHITE);
     }
+
+    bg_canvas.drawString("Note:",
+                         0,
+                         M5.Display.height() - text_height);
+    bg_canvas.writeFastVLine(note_start_pos,
+                             channel_start_pos,
+                             M5.Display.height() - channel_start_pos,
+                             TFT_GOLD);
     for (int i = 0; i < M5.Display.width() / text_width; i++)
     {
-        bg_canvas.writeFastVLine(note_start_pos + 3 * (text_width + 3) * i,
+        bg_canvas.writeFastVLine(note_start_pos + 3 * (text_width + 3) * i + offset,
                                  channel_start_pos,
-                                 M5.Display.width(),
-                                 i % 4 == 0 ? TFT_LIGHTGREY : TFT_DARKGRAY);
+                                 M5.Display.height() - channel_start_pos,
+                                 (i + base) % 4 == 0 ? TFT_LIGHTGREY : TFT_DARKGRAY);
+        bg_canvas.drawNumber(i + base,
+                             note_start_pos + 3 * (text_width + 3) * i + 2,
+                             M5.Display.height() - text_height);
     }
+    bg_canvas.fillRectAlpha(0,
+                            M5.Display.height() - text_height - 1,
+                            M5.Display.width(),
+                            text_height + 1,
+                            128, TFT_DARKGRAY);
+
     for (int i = 0; i < DATA_LENGTH; i++)
     {
         auto instrument = synthData.getInstrument(i);
@@ -115,9 +142,9 @@ void MainScreen::update()
         for (int j = 0; j < M5.Display.width() / text_width; j++)
         {
             char note_name[4];
-            sprintf(note_name, "%s", tone_name(synthData.getNote(i, j)));
+            sprintf(note_name, "%s", tone_name(synthData.getNote(i, j + base)));
             bg_canvas.drawString(note_name,
-                                 note_start_pos + 3 * (text_width + 3) * j + 3,
+                                 note_start_pos + 3 * (text_width + 3) * j + 3 + offset,
                                  channel_start_pos + (text_height + 3) * i + 2);
         }
 
@@ -134,18 +161,20 @@ void MainScreen::update()
     case 0:
     case 1:
     {
-        bg_canvas.fillRectAlpha(note_start_pos + 3 * (text_width + 3) * pos_x + 1,
-                                channel_start_pos + (text_height + 3) * pos_y + 2,
-                                4 * text_width,
-                                1 * text_height, 0x88, TFT_DARKGRAY);
+        bg_canvas.fillRectAlpha(note_start_pos + 3 * (text_width + 3) * pos_x + 1 + offset,
+                                channel_start_pos + (text_height + 3) * pos_y + 1,
+                                4 * text_width + 1,
+                                1 * text_height + 2,
+                                0x88, TFT_DARKGRAY);
         break;
     }
     case 2:
     {
-        bg_canvas.fillRectAlpha(note_start_pos + 3 * (text_width + 3) * pos_x + 1,
-                                channel_start_pos + (text_height + 3) * pos_y + 2,
-                                4 * text_width,
-                                1 * text_height, 0x88, TFT_WHITE);
+        bg_canvas.fillRectAlpha(note_start_pos + 3 * (text_width + 3) * pos_x + 1 + offset,
+                                channel_start_pos + (text_height + 3) * pos_y + 1,
+                                4 * text_width + 1,
+                                1 * text_height + 2,
+                                0x88, TFT_WHITE);
         break;
     }
     case 3:
@@ -169,13 +198,15 @@ void MainScreen::update()
     }
     case 0XFF:
     {
+        auto current = player.current;
+        base = current - current % 8;
         for (int i = 0; i < DATA_LENGTH; i++)
         {
-
-            bg_canvas.fillRectAlpha(note_start_pos + 3 * (text_width + 3) * player.current + 1,
-                                    channel_start_pos + (text_height + 3) * i + 2,
-                                    4 * text_width,
-                                    1 * text_height, 0x88, TFT_DARKGREEN);
+            bg_canvas.fillRectAlpha(note_start_pos + 3 * (text_width + 3) * (current % 8) + 1,
+                                    channel_start_pos + (text_height + 3) * i + 1,
+                                    4 * text_width + 1,
+                                    1 * text_height + 2,
+                                    0x88, TFT_DARKGREEN);
         }
         break;
     }
@@ -205,7 +236,13 @@ void MainScreen::upButton()
     {
     case 0:
     {
-        pos_x = pos_x < 8 - 1 ? pos_x + 1 : 7;
+        if (pos_x < 7)
+            pos_x++;
+        else
+        {
+            if (base + pos_x < CHANNELS_LENGTH)
+                base++;
+        }
         break;
     }
     case 1:
@@ -216,13 +253,13 @@ void MainScreen::upButton()
     }
     case 2:
     {
-        auto note = synthData.getNote(pos_y, pos_x);
+        auto note = synthData.getNote(pos_y, pos_x + base);
         if (note == 0)
         {
             note = last_note;
         }
-        synthData.setNote(pos_y, pos_x, ++note, 127);
-        last_note = synthData.getNote(pos_y, pos_x);
+        synthData.setNote(pos_y, pos_x + base, ++note, 127);
+        last_note = synthData.getNote(pos_y, pos_x + base);
         break;
     }
     case 4:
@@ -240,7 +277,13 @@ void MainScreen::downButton()
     {
     case 0:
     {
-        pos_x = pos_x > 0 ? pos_x - 1 : 0;
+        if (pos_x > 0)
+            pos_x--;
+        else
+        {
+            if (base > 0)
+                base--;
+        }
         break;
     }
     case 1:
@@ -251,13 +294,13 @@ void MainScreen::downButton()
     }
     case 2:
     {
-        auto note = synthData.getNote(pos_y, pos_x);
+        auto note = synthData.getNote(pos_y, pos_x + base);
         if (note == 0)
         {
             note = last_note;
         }
-        synthData.setNote(pos_y, pos_x, --note, 127);
-        last_note = synthData.getNote(pos_y, pos_x);
+        synthData.setNote(pos_y, pos_x + base, --note, 127);
+        last_note = synthData.getNote(pos_y, pos_x + base);
         break;
     }
     case 4:
@@ -283,6 +326,8 @@ void MainScreen::enterHold()
     case 4:
     {
         op_mode = 0xFF;
+        base = 0;
+        offset = 0;
         player.start();
         break;
     }
@@ -337,6 +382,19 @@ void MainScreen::bButton()
     }
     }
 }
+void MainScreen::aHold()
+{
+    switch (op_mode)
+    {
+    case 0:
+    case 1:
+    case 3:
+    {
+        synthData.setNote(pos_y, pos_x + base, 0, 127);
+        break;
+    }
+    }
+}
 void MainScreen::bHold()
 {
     switch (op_mode)
@@ -353,5 +411,69 @@ void MainScreen::bHold()
     }
     }
 }
-
+void MainScreen::touchPoint(int16_t x, int16_t y)
+{
+    switch (op_mode)
+    {
+    case 0:
+    case 1:
+    case 2:
+    case 3:
+    case 4:
+    {
+        if (y > channel_start_pos && y < M5.Display.height() - text_height)
+        {
+            pos_y = map(y,
+                        channel_start_pos, M5.Display.height() - text_height,
+                        0, 8);
+            if (x < note_start_pos)
+            {
+                op_mode = 4;
+            }
+            if (x > note_start_pos)
+            {
+                pos_x = map(x,
+                            note_start_pos, note_start_pos + 3 * (text_width + 3) * 8,
+                            0, 8);
+                op_mode = 2;
+            }
+        }
+        break;
+    }
+    }
+}
+void MainScreen::touchFlick(int x, int y)
+{
+    switch (op_mode)
+    {
+    case 0:
+    case 1:
+    {
+        // offset = (x) % (3 * (text_width + 3));
+        base -= x / (3 * (text_width + 3));
+        if (base < 0)
+            base = 0;
+        if (base + 8 > CHANNELS_LENGTH)
+            base = (CHANNELS_LENGTH - 8);
+        break;
+    }
+    case 2:
+    {
+        auto note = synthData.getNote(pos_y, pos_x + base);
+        if (note == 0)
+        {
+            note = last_note;
+        }
+        synthData.setNote(pos_y, pos_x + base, note - y, 127);
+        last_note = synthData.getNote(pos_y, pos_x + base);
+        break;
+    }
+    case 4:
+    {
+        auto instrument = synthData.getInstrument(pos_y);
+        synthData.setInstrument(pos_y, instrument - y);
+        break;
+    }
+    }
+}
 MainScreen mainScreen;

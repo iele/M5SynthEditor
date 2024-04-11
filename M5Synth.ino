@@ -13,7 +13,7 @@ void setup()
     synthData.begin();
     player.begin();
     mainScreen.begin();
-    
+
     old_inc = hmi_module.getEncoderValue();
 }
 
@@ -26,14 +26,19 @@ void loop()
 
     mainScreen.update();
 
-    if (M5.BtnA.wasPressed())
+    if (M5.BtnA.wasClicked())
     {
         mainScreen.aButton();
         delay(10);
     }
-    if (M5.BtnB.wasPressed())
+    if (M5.BtnB.wasClicked())
     {
         mainScreen.bButton();
+        delay(10);
+    }
+    if (M5.BtnA.wasHold())
+    {
+        mainScreen.aHold();
         delay(10);
     }
     if (M5.BtnB.wasHold())
@@ -41,7 +46,7 @@ void loop()
         mainScreen.bHold();
         delay(10);
     }
-    if (M5.BtnC.wasPressed())
+    if (M5.BtnC.wasClicked())
     {
         mainScreen.enterButton();
         delay(10);
@@ -60,11 +65,23 @@ void loop()
         old_inc = inc;
         delay(10);
     }
-
-    if (inc < old_inc - 4)
+    else if (inc < old_inc - 4)
     {
         mainScreen.upButton();
         old_inc = inc;
+        delay(10);
+    }
+
+    auto t = M5.Touch.getDetail();
+    if (t.wasClicked())
+    {
+        mainScreen.touchPoint(t.x, t.y);
+        delay(10);
+    }
+    else
+    {
+        if (t.isFlicking() || t.wasFlicked())
+            mainScreen.touchFlick(t.deltaX(), t.deltaX());
         delay(10);
     }
 }
