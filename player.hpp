@@ -32,7 +32,7 @@ void Player::play()
         synth.setNoteOn(i == 0 ? 9 : i, note, 127);
     }
     current++;
-    if (current > 16)
+    if (current >= synthData.length)
         current = 0;
 }
 

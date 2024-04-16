@@ -1,7 +1,8 @@
 #include <M5Unified.h>
 
-#include "ui/main_screen.hpp"
 #include "config.hpp"
+
+#include "ui/screen_manager.hpp"
 
 int32_t old_inc;
 
@@ -12,7 +13,7 @@ void setup()
     hmi_module.begin(&Wire1, HMI_ADDR, 11, 12);
     synthData.begin();
     player.begin();
-    mainScreen.begin();
+    screen_begin();
 
     old_inc = hmi_module.getEncoderValue();
 }
@@ -24,50 +25,50 @@ void loop()
     M5.BtnB.setRawState(millis(), !hmi_module.getButton2());
     M5.BtnC.setRawState(millis(), !hmi_module.getButtonS());
 
-    mainScreen.update();
+    screen_update();
 
     if (M5.BtnA.wasClicked())
     {
-        mainScreen.aButton();
+        screen->aButton();
         delay(10);
     }
     if (M5.BtnB.wasClicked())
     {
-        mainScreen.bButton();
+        screen->bButton();
         delay(10);
     }
     if (M5.BtnA.wasHold())
     {
-        mainScreen.aHold();
+        screen->aHold();
         delay(10);
     }
     if (M5.BtnB.wasHold())
     {
-        mainScreen.bHold();
+        screen->bHold();
         delay(10);
     }
     if (M5.BtnC.wasClicked())
     {
-        mainScreen.enterButton();
+        screen->enterButton();
         delay(10);
     }
 
     if (M5.BtnC.wasHold())
     {
-        mainScreen.enterHold();
+        screen->enterHold();
         delay(10);
     }
 
     auto inc = hmi_module.getEncoderValue();
     if (inc > old_inc + 4)
     {
-        mainScreen.downButton();
+        screen->downButton();
         old_inc = inc;
         delay(10);
     }
     else if (inc < old_inc - 4)
     {
-        mainScreen.upButton();
+        screen->upButton();
         old_inc = inc;
         delay(10);
     }
@@ -75,13 +76,13 @@ void loop()
     auto t = M5.Touch.getDetail();
     if (t.wasClicked())
     {
-        mainScreen.touchPoint(t.x, t.y);
+        screen->touchPoint(t.x, t.y);
         delay(10);
     }
     else
     {
         if (t.isFlicking() || t.wasFlicked())
-            mainScreen.touchFlick(t.deltaX(), t.deltaX());
+            screen->touchFlick(t.deltaX(), t.deltaX());
         delay(10);
     }
 }

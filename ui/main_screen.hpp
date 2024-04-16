@@ -2,6 +2,8 @@
 
 #include <M5Unified.h>
 
+#include "base_screen.hpp"
+
 #include "../config.hpp"
 #include "../data.hpp"
 #include "../player.hpp"
@@ -9,11 +11,12 @@
 int channel_colors[8] = {TFT_BROWN, TFT_CYAN, TFT_GOLD, TFT_MAGENTA,
                          TFT_ORANGE, TFT_YELLOW, TFT_BLUE, TFT_RED};
 
-class MainScreen
+class MainScreen : public BaseScreen
 {
 public:
     void begin();
     void update();
+    void switch_screen();
 
     void upButton();
     void downButton();
@@ -28,7 +31,6 @@ public:
 
 private:
     M5Canvas main_canvas;
-    M5Canvas bg_canvas;
     unsigned long last_time;
 
     int32_t text_height;
@@ -51,11 +53,8 @@ void MainScreen::begin()
 {
     main_canvas.createSprite(M5.Display.width(), M5.Display.height());
     main_canvas.clear();
-
-    bg_canvas.createSprite(M5.Display.width(), M5.Display.height());
-    bg_canvas.clear();
-    bg_canvas.fillScreen(TFT_BLACK);
-    bg_canvas.setTextFont(&AsciiFont8x16);
+    main_canvas.fillScreen(TFT_BLACK);
+    main_canvas.setTextFont(&AsciiFont8x16);
 
     op_mode = 0;
     pos_x = 0;
@@ -63,8 +62,8 @@ void MainScreen::begin()
     base = 0;
     offset = 0;
 
-    text_height = bg_canvas.fontHeight(&AsciiFont8x16);
-    text_width = bg_canvas.fontWidth(&AsciiFont8x16);
+    text_height = main_canvas.fontHeight(&AsciiFont8x16);
+    text_width = main_canvas.fontWidth(&AsciiFont8x16);
     channel_start_pos = M5.Display.height() - (text_height + 3) * (DATA_LENGTH + 1);
     note_start_pos = text_width * 6;
 }
@@ -72,29 +71,33 @@ void MainScreen::begin()
 void MainScreen::update()
 {
     main_canvas.clear();
-    bg_canvas.clear();
 
-    bg_canvas.drawString("M5Synth for CoreS3", 0, 0);
+    main_canvas.drawString("M5Synth for CoreS3", 0, 0);
     char power_str[4];
     sprintf(power_str, "%03d", M5.Power.getBatteryLevel());
-    bg_canvas.drawString(power_str, M5.Display.width() - 3 * text_width, 0);
-    bg_canvas.fillRectAlpha(0, 0, M5.Display.width(), text_height, 128, TFT_BLUE);
+    main_canvas.drawString(power_str, M5.Display.width() - 3 * text_width, 0);
+    main_canvas.fillRectAlpha(0, 0, M5.Display.width(), text_height, 128, TFT_BLUE);
 
     char volume_str[4];
     sprintf(volume_str, "%03d", synthData.master_volume);
-    bg_canvas.drawString("Master Volume:", 0, text_height);
-    bg_canvas.drawString(volume_str, text_width * 15, text_height);
+    main_canvas.drawString("Master Volume:", 0, text_height);
+    main_canvas.drawString(volume_str, text_width * 15, text_height);
 
+    auto str_x = 0;
+    char len_str[4];
+    sprintf(len_str, "%03d", synthData.length);
+    str_x += main_canvas.drawString("Length:", 0, text_height * 2);
+    str_x += main_canvas.drawString(len_str, str_x, text_height * 2);
     char bpm_str[4];
     sprintf(bpm_str, "%03d", synthData.bpm);
-    bg_canvas.drawString("BPM:", 0, text_height * 2);
-    bg_canvas.drawString(bpm_str, text_width * 5, text_height * 2);
+    str_x += main_canvas.drawString(" BPM:", str_x, text_height * 2);
+    str_x += main_canvas.drawString(bpm_str, str_x, text_height * 2);
     char tempo_str[4];
     sprintf(tempo_str, "%1d/%1d", 4, 4);
-    bg_canvas.drawString("Tempo:", text_width * 9, text_height * 2);
-    bg_canvas.drawString(tempo_str, text_width * 16, text_height * 2);
+    str_x += main_canvas.drawString(" Tempo:", str_x, text_height * 2);
+    str_x += main_canvas.drawString(tempo_str, str_x, text_height * 2);
 
-    bg_canvas.fillRectAlpha(0,
+    main_canvas.fillRectAlpha(0,
                             text_height,
                             M5.Display.width(),
                             channel_start_pos - text_height,
@@ -102,30 +105,30 @@ void MainScreen::update()
 
     for (int i = 0; i < DATA_LENGTH + 1; i++)
     {
-        bg_canvas.writeFastHLine(0,
+        main_canvas.writeFastHLine(0,
                                  channel_start_pos + (text_height + 3) * i,
                                  M5.Display.width(),
                                  TFT_WHITE);
     }
 
-    bg_canvas.drawString("Note:",
+    main_canvas.drawString("Note:",
                          0,
                          M5.Display.height() - text_height);
-    bg_canvas.writeFastVLine(note_start_pos,
+    main_canvas.writeFastVLine(note_start_pos,
                              channel_start_pos,
                              M5.Display.height() - channel_start_pos,
                              TFT_GOLD);
     for (int i = 0; i < M5.Display.width() / text_width; i++)
     {
-        bg_canvas.writeFastVLine(note_start_pos + 3 * (text_width + 3) * i + offset,
+        main_canvas.writeFastVLine(note_start_pos + 3 * (text_width + 3) * i + offset,
                                  channel_start_pos,
                                  M5.Display.height() - channel_start_pos,
                                  (i + base) % 4 == 0 ? TFT_LIGHTGREY : TFT_DARKGRAY);
-        bg_canvas.drawNumber(i + base,
+        main_canvas.drawNumber(i + base,
                              note_start_pos + 3 * (text_width + 3) * i + 2,
                              M5.Display.height() - text_height);
     }
-    bg_canvas.fillRectAlpha(0,
+    main_canvas.fillRectAlpha(0,
                             M5.Display.height() - text_height - 1,
                             M5.Display.width(),
                             text_height + 1,
@@ -137,18 +140,18 @@ void MainScreen::update()
         char channel_name[7];
         i == 0 ? sprintf(channel_name, "Drum%02X", instrument)
                : sprintf(channel_name, "CH%d.%02X", i, instrument);
-        bg_canvas.drawString(channel_name, 0, channel_start_pos + (text_height + 3) * i + 2);
+        main_canvas.drawString(channel_name, 0, channel_start_pos + (text_height + 3) * i + 2);
 
         for (int j = 0; j < M5.Display.width() / text_width; j++)
         {
             char note_name[4];
             sprintf(note_name, "%s", tone_name(synthData.getNote(i, j + base)));
-            bg_canvas.drawString(note_name,
+            main_canvas.drawString(note_name,
                                  note_start_pos + 3 * (text_width + 3) * j + 3 + offset,
                                  channel_start_pos + (text_height + 3) * i + 2);
         }
 
-        bg_canvas.fillRectAlpha(0,
+        main_canvas.fillRectAlpha(0,
                                 channel_start_pos + (text_height + 3) * i + 1,
                                 M5.Display.width(),
                                 text_height + 1,
@@ -161,7 +164,7 @@ void MainScreen::update()
     case 0:
     case 1:
     {
-        bg_canvas.fillRectAlpha(note_start_pos + 3 * (text_width + 3) * pos_x + 1 + offset,
+        main_canvas.fillRectAlpha(note_start_pos + 3 * (text_width + 3) * pos_x + 1 + offset,
                                 channel_start_pos + (text_height + 3) * pos_y + 1,
                                 4 * text_width + 1,
                                 1 * text_height + 2,
@@ -170,7 +173,7 @@ void MainScreen::update()
     }
     case 2:
     {
-        bg_canvas.fillRectAlpha(note_start_pos + 3 * (text_width + 3) * pos_x + 1 + offset,
+        main_canvas.fillRectAlpha(note_start_pos + 3 * (text_width + 3) * pos_x + 1 + offset,
                                 channel_start_pos + (text_height + 3) * pos_y + 1,
                                 4 * text_width + 1,
                                 1 * text_height + 2,
@@ -179,7 +182,7 @@ void MainScreen::update()
     }
     case 3:
     {
-        bg_canvas.fillRectAlpha(0,
+        main_canvas.fillRectAlpha(0,
                                 channel_start_pos + (text_height + 3) * pos_y + 2,
                                 6 * text_width,
                                 1 * text_height, 0x88, TFT_DARKGRAY);
@@ -187,13 +190,13 @@ void MainScreen::update()
     }
     case 4:
     {
-        bg_canvas.fillRectAlpha(0,
+        main_canvas.fillRectAlpha(0,
                                 channel_start_pos + (text_height + 3) * pos_y + 2,
                                 6 * text_width,
                                 1 * text_height, 0x88, TFT_WHITE);
         char instument[30];
         sprintf(instument, "%s", instrument_name(synthData.getInstrument(pos_y)));
-        bg_canvas.drawString(instument, 0, channel_start_pos - (text_height + 3));
+        main_canvas.drawString(instument, 0, channel_start_pos - (text_height + 3));
         break;
     }
     case 0XFF:
@@ -202,7 +205,7 @@ void MainScreen::update()
         base = current - current % 8;
         for (int i = 0; i < DATA_LENGTH; i++)
         {
-            bg_canvas.fillRectAlpha(note_start_pos + 3 * (text_width + 3) * (current % 8) + 1,
+            main_canvas.fillRectAlpha(note_start_pos + 3 * (text_width + 3) * (current % 8) + 1,
                                     channel_start_pos + (text_height + 3) * i + 1,
                                     4 * text_width + 1,
                                     1 * text_height + 2,
@@ -223,7 +226,6 @@ void MainScreen::update()
     if (current_time > last_time + 1000 / SCREEN_HZ)
     {
         M5.Display.startWrite();
-        bg_canvas.pushSprite(&main_canvas, 0, 0);
         main_canvas.pushSprite(&M5.Display, 0, 0);
         M5.Display.endWrite();
         last_time = current_time;
@@ -240,7 +242,7 @@ void MainScreen::upButton()
             pos_x++;
         else
         {
-            if (base + pos_x < CHANNELS_LENGTH)
+            if (base + pos_x < synthData.length)
                 base++;
         }
         break;
@@ -421,6 +423,9 @@ void MainScreen::touchPoint(int16_t x, int16_t y)
     case 3:
     case 4:
     {
+        if (y < channel_start_pos) {
+            screen_num = 1;
+        }
         if (y > channel_start_pos && y < M5.Display.height() - text_height)
         {
             pos_y = map(y,
@@ -438,6 +443,10 @@ void MainScreen::touchPoint(int16_t x, int16_t y)
                 op_mode = 2;
             }
         }
+        if (y > M5.Display.height() - text_height)
+        {
+            op_mode = last_op_mode;
+        }
         break;
     }
     }
@@ -453,8 +462,8 @@ void MainScreen::touchFlick(int x, int y)
         base -= x / (3 * (text_width + 3));
         if (base < 0)
             base = 0;
-        if (base + 8 > CHANNELS_LENGTH)
-            base = (CHANNELS_LENGTH - 8);
+        if (base + 8 > synthData.length)
+            base = (synthData.length - 8);
         break;
     }
     case 2:
@@ -476,4 +485,3 @@ void MainScreen::touchFlick(int x, int y)
     }
     }
 }
-MainScreen mainScreen;

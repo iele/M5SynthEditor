@@ -168,7 +168,6 @@ char *instrument_name(uint8_t instrument)
 }
 
 #define DATA_LENGTH 8
-#define CHANNELS_LENGTH 256
 
 struct Note
 {
@@ -180,7 +179,7 @@ struct Channel
 {
     uint8_t instrument;
     uint8_t volume;
-    Note notes[CHANNELS_LENGTH] = {0};
+    Note* notes;
 };
 
 class SynthData
@@ -196,6 +195,7 @@ public:
 
     uint8_t master_volume;
     uint8_t bpm;
+    uint16_t length;
 
 private:
     Channel channels[DATA_LENGTH];
@@ -203,9 +203,11 @@ private:
 
 void SynthData::begin()
 {
+    length = 32;
     for (int i = 0; i < DATA_LENGTH; i++)
     {
-        for (int j = 0; j < CHANNELS_LENGTH; j++)
+        channels[i].notes = (Note*)malloc(length * sizeof(Note));
+        for (int j = 0; j < length; j++)
         {
             channels[i].notes[j].pitch = 0;
             channels[i].notes[j].velocity = 0;
@@ -219,7 +221,7 @@ void SynthData::begin()
 
 uint8_t SynthData::getNote(uint8_t channel, uint8_t note)
 {
-    if (channel >= DATA_LENGTH || note >= CHANNELS_LENGTH)
+    if (channel >= DATA_LENGTH || note >= length)
         return 0;
     return channels[channel].notes[note].pitch;
 }
@@ -240,7 +242,7 @@ uint8_t SynthData::getVolume(uint8_t channel)
 
 bool SynthData::setNote(uint8_t channel, uint8_t note, uint8_t pitch, uint8_t velocity)
 {
-    if (channel >= DATA_LENGTH || note >= CHANNELS_LENGTH)
+    if (channel >= DATA_LENGTH || note >= length)
         return false;
 
     if (pitch != 0x00)
