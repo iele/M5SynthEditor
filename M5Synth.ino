@@ -9,6 +9,7 @@ int32_t old_inc;
 void setup()
 {
     M5.begin();
+    M5.Display.setBrightness(64);
     synth.begin(&Serial2, UNIT_SYNTH_BAUD, 18, 17);
     hmi_module.begin(&Wire1, HMI_ADDR, 11, 12);
     synthData.begin();

@@ -194,7 +194,7 @@ public:
     uint8_t getVolume(uint8_t channel);
 
     uint8_t master_volume;
-    uint8_t bpm;
+    uint16_t bpm;
     uint16_t length;
 
 private:
